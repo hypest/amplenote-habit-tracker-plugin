@@ -45,30 +45,24 @@
         check: async function(app, link) {
           const untickedMark = "⬜";
           const tickedMark = "✅";
-          const habitToCalculateRegex = /\[\([𝟬𝟭𝟮𝟯𝟰𝟱𝟲𝟳𝟴𝟵]*? ✔\)]\[\^.*?\]\s*?\[(.*?)\]\((https:\/\/www.amplenote.com\/notes\/(.*?))\)/g;
+          const habitToCalculateRegex = /\[\([𝟬𝟭𝟮𝟯𝟰𝟱𝟲𝟳𝟴𝟵]*? ✔\)]\[\^.*?\]\s*?\[(?<habitName>.*?)\]\((?<habitURL>https:\/\/www.amplenote.com\/notes\/(?<habitUUID>.*?))\)/g;
   
           const currentContent = await app.getNoteContent({ uuid: app.context.noteUUID });
   
           for (const match of currentContent.matchAll(habitToCalculateRegex)) {
-            const habitUUID = match[3];
-  
-            if (habitUUID) {
-              const habitURL = match[2];
-              const checkboxInsideRegex = new RegExp(`\\[\\s*?(${untickedMark}|${tickedMark})\\s*?[^\\].]*?\\]\\(${habitURL}.*?\\)`, "g");
-              const checkboxBeforeRegex = new RegExp(`\\[(${untickedMark}|${tickedMark})\\]\\[\\^\\d*?\\]\\s*?\\[[^\\].]*?\\]\\(${habitURL}.*?\\)`, "g");
+            if (match && match.groups.habitUUID) {
+              const checkboxInsideRegex = new RegExp(`\\[\\s*?(${untickedMark}|${tickedMark})\\s*?[^\\].]*?\\]\\(${match.groups.habitURL}.*?\\)`, "g");
+              const checkboxBeforeRegex = new RegExp(`\\[(${untickedMark}|${tickedMark})\\]\\[\\^\\d*?\\]\\s*?\\[[^\\].]*?\\]\\(${match.groups.habitURL}.*?\\)`, "g");
     
               var untickedCount=0, tickedCount=0;
   
-              const noteHandle = await app.findNote({ uuid: habitUUID });
-              
-              const backlinks = await app.getNoteBacklinks({ uuid: habitUUID });
+              const habitNoteHandle = await app.findNote({ uuid: match.groups.habitUUID });
+              const backlinks = await app.getNoteBacklinks({ uuid: habitNoteHandle.uuid });
               for (const backlink of backlinks) {
                 const refContent = await app.getNoteContent({ uuid: backlink.uuid });
                 // const example4 = '[⬜️ Ξύπνημα 6πμ](https://www.amplenote.com/notes/7645917c-faaf-11ee-a912-02d8623bad88)';
                 // const example5 = '[✅][^14] [Ξύπνημα 6πμ](https://www.amplenote.com/notes/7645917c-faaf-11ee-a912-02d8623bad88)';
                 
-                debugger;
-  
                 for (const matchInRef of refContent.matchAll(checkboxInsideRegex)) {
                   matchInRef[1] == untickedMark ? untickedCount++ : tickedCount++;
                   debugger;
@@ -78,12 +72,11 @@
                   debugger;
                 }
               }
-              console.log(`${noteHandle.name} ticked ${tickedCount}/${tickedCount+untickedCount}`);
+              console.log(`${habitNoteHandle.name} ticked ${tickedCount}/${tickedCount+untickedCount}`);
             }
           }
           
           // todo: consider treating any occurance of the habit name as a checkbox if a full task or completed task
-          debugger;
         },
   
         run: async function(app, link) {
