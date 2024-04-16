@@ -40,23 +40,24 @@
       }
     },
   
-    habitToCalculateRegex: /(?<beforeCount>\[\()(?<habitTickedCount>[𝟬𝟭𝟮𝟯𝟰𝟱𝟲𝟳𝟴𝟵\/]*?)(?<afterCount> ✔\)(\]\[\^.*?\]\s*?\[){0,1}(?<habitName>.*?)\]\((?<habitURL>https:\/\/www.amplenote.com\/notes\/(?<habitUUID>.*?))\))/g,
+    habitToCalculateRegex: /(?<beforeCount>\[\()(?<habitTickedCount>[𝟬𝟭𝟮𝟯𝟰𝟱𝟲𝟳𝟴𝟵\/]+?)(?<afterCount> ✔\)(\]\[\^.*?\]\s*?\[){0,1}(?<habitName>.*?)\]\((?<habitURL>https:\/\/www.amplenote.com\/notes\/(?<habitUUID>.*?))\))/g,
   
     linkOption: {
       "Count last week": {
         check: async function(app, link) {
           const currentContent = await app.getNoteContent({ uuid: app.context.noteUUID });
   
+          var count;
           // search for habit tracker widgets in the current note
           for (const match of currentContent.matchAll(this.habitToCalculateRegex)) {
-            if (!match || !match.groups.habitUUID) {
-              return false;
+            if (match && match.groups.habitUUID) {
+              count++;
             }
           }
           
           // todo: consider treating any occurance of the habit name as a checkbox if a full task or completed task
   
-          return true;
+          return count > 0;
         },
   
         run: async function(app, link) {
