@@ -40,17 +40,21 @@
       }
     },
   
+    habitToCalculateRegex: /(?<beforeCount>\[\()(?<habitTickedCount>[𝟬𝟭𝟮𝟯𝟰𝟱𝟲𝟳𝟴𝟵\/]*?)(?<afterCount> ✔\)(\]\[\^.*?\]\s*?\[){0,1}(?<habitName>.*?)\]\((?<habitURL>https:\/\/www.amplenote.com\/notes\/(?<habitUUID>.*?))\))/g,
+  
     linkOption: {
       "Count last week": {
         check: async function(app, link) {
           const currentContent = await app.getNoteContent({ uuid: app.context.noteUUID });
   
           // search for habit tracker widgets in the current note
-          for (const match of currentContent.matchAll(habitToCalculateRegex)) {
+          for (const match of currentContent.matchAll(this.habitToCalculateRegex)) {
             if (!match || !match.groups.habitUUID) {
               return false;
             }
           }
+          
+          // todo: consider treating any occurance of the habit name as a checkbox if a full task or completed task
   
           return true;
         },
@@ -58,16 +62,16 @@
         run: async function(app, link) {
           const untickedMark = "⬜";
           const tickedMark = "✅";
-          const habitToCalculateRegex = /\[\([𝟬𝟭𝟮𝟯𝟰𝟱𝟲𝟳𝟴𝟵]*? ✔\)\]\[\^.*?\]\s*?\[(?<habitName>.*?)\]\((?<habitURL>https:\/\/www.amplenote.com\/notes\/(?<habitUUID>.*?))\)/g;
-  
           const currentContent = await app.getNoteContent({ uuid: app.context.noteUUID });
   
+          const counts = {};
+  
           // search for habit tracker widgets in the current note
-          for (const match of currentContent.matchAll(habitToCalculateRegex)) {
+          for (const match of currentContent.matchAll(this.habitToCalculateRegex)) {
             if (!match || !match.groups.habitUUID) {
               return false;
             }
-            
+  
             const checkboxInsideRegex = new RegExp(`\\[\\s*?(${untickedMark}|${tickedMark})\\s*?[^\\].]*?\\]\\(${match.groups.habitURL}.*?\\)`, "g");
             const checkboxBeforeRegex = new RegExp(`\\[(${untickedMark}|${tickedMark})\\]\\[\\^\\d*?\\]\\s*?\\[[^\\].]*?\\]\\(${match.groups.habitURL}.*?\\)`, "g");
   
@@ -77,8 +81,6 @@
             const backlinks = await app.getNoteBacklinks({ uuid: habitNoteHandle.uuid });
             for (const backlink of backlinks) {
               const refContent = await app.getNoteContent({ uuid: backlink.uuid });
-              // const example4 = '[⬜️ Ξύπνημα 6πμ](https://www.amplenote.com/notes/7645917c-faaf-11ee-a912-02d8623bad88)';
-              // const example5 = '[✅][^14] [Ξύπνημα 6πμ](https://www.amplenote.com/notes/7645917c-faaf-11ee-a912-02d8623bad88)';
               
               for (const matchInRef of refContent.matchAll(checkboxInsideRegex)) {
                 matchInRef[1] == untickedMark ? untickedCount++ : tickedCount++;
@@ -87,9 +89,22 @@
                 matchInRef[1] == untickedMark ? untickedCount++ : tickedCount++;
               }
             }
+            counts[match.groups.habitName] = { tickedCount, total: tickedCount+untickedCount};
             console.log(`${habitNoteHandle.name} ticked ${tickedCount}/${tickedCount+untickedCount}`);
           }
-          
+          const edited = currentContent.replaceAll(this.habitToCalculateRegex,
+              (match, p1, p2, p3, p4, p5, p6, p7, offset, string, groups) => {
+                const replacement = 
+                  groups.beforeCount
+                  + this.toSmallNumerals(counts[groups.habitName].tickedCount)
+                  + "/"
+                  + this.toSmallNumerals(counts[groups.habitName].total)
+                  + groups.afterCount;
+                return replacement;
+              });
+          const note = await app.notes.find(app.context.noteUUID);
+          await note.replaceContent(edited);
+  
           // todo: consider treating any occurance of the habit name as a checkbox if a full task or completed task
         }
       }
