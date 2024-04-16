@@ -43,7 +43,6 @@
     linkOption: {
       "Count last week": {
         check: async function(app, link) {
-          const habitToCalculateRegex = /\[\([𝟬𝟭𝟮𝟯𝟰𝟱𝟲𝟳𝟴𝟵]*? ✔\)]\[\^.*?\]\s*?\[(?<habitName>.*?)\]\((?<habitURL>https:\/\/www.amplenote.com\/notes\/(?<habitUUID>.*?))\)/g;
           const currentContent = await app.getNoteContent({ uuid: app.context.noteUUID });
   
           // search for habit tracker widgets in the current note
@@ -59,7 +58,7 @@
         run: async function(app, link) {
           const untickedMark = "⬜";
           const tickedMark = "✅";
-          const habitToCalculateRegex = /\[\([𝟬𝟭𝟮𝟯𝟰𝟱𝟲𝟳𝟴𝟵]*? ✔\)]\[\^.*?\]\s*?\[(?<habitName>.*?)\]\((?<habitURL>https:\/\/www.amplenote.com\/notes\/(?<habitUUID>.*?))\)/g;
+          const habitToCalculateRegex = /\[\([𝟬𝟭𝟮𝟯𝟰𝟱𝟲𝟳𝟴𝟵]*? ✔\)\]\[\^.*?\]\s*?\[(?<habitName>.*?)\]\((?<habitURL>https:\/\/www.amplenote.com\/notes\/(?<habitUUID>.*?))\)/g;
   
           const currentContent = await app.getNoteContent({ uuid: app.context.noteUUID });
   
@@ -83,11 +82,9 @@
               
               for (const matchInRef of refContent.matchAll(checkboxInsideRegex)) {
                 matchInRef[1] == untickedMark ? untickedCount++ : tickedCount++;
-                debugger;
               }
               for (const matchInRef of refContent.matchAll(checkboxBeforeRegex)) {
                 matchInRef[1] == untickedMark ? untickedCount++ : tickedCount++;
-                debugger;
               }
             }
             console.log(`${habitNoteHandle.name} ticked ${tickedCount}/${tickedCount+untickedCount}`);
