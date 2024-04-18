@@ -40,8 +40,9 @@
       }
     },
   
-    habitToCalculateRegex: /(?<beforeCount>\[)(?<habitTickedCount>[𝟬𝟭𝟮𝟯𝟰𝟱𝟲𝟳𝟴𝟵\/]+?)(?<afterCount> ⎹  (\]\[\^.*?\]\s*?\[){0,1}(?<habitName>.*?)\]\((?<habitURL>https:\/\/www.amplenote.com\/notes\/(?<habitUUID>.*?))\))/g,
-  
+    habitToCalculateRegex: /(?<beforeCount>(\\\|)*?\s*?\[(\\\|)*?\s*?)(?<habitTickedCount>[𝟬𝟭𝟮𝟯𝟰𝟱𝟲𝟳𝟴𝟵\/]+)(?<afterCount>(\s*?(\\\||\|)\s*?|\]\[\^.*?\]\s*?(\\\||\|)\s*?\[)(?<habitName>.*?)\]\((?<habitURL>https:\/\/www.amplenote.com\/notes\/(?<habitUUID>.*?))\))/g,
+    // example6: '[𝟱𝟲/𝟱𝟲][^3]|[Ξύπνημα 6πμ](https://www.amplenote.com/notes/7645917c-faaf-11ee-a912-02d8623bad88)',
+                                                                                              
     linkOption: {
       "Count last week": {
         check: async function(app, link) {
@@ -68,9 +69,6 @@
           const counts = {};
   
           const dailyJotHandles = await app.filterNotes({ tag: "daily-jots" });
-          dailyJotHandles.forEach(jotHandle => {
-            console.log(jotHandle.name);
-          });
   
           // search for habit tracker widgets in the current note
           for (const match of currentContent.matchAll(this.habitToCalculateRegex)) {
@@ -99,16 +97,15 @@
                 matchInRef[1] == untickedMark ? untickedCount++ : tickedCount++;
               }
             }
-            counts[match.groups.habitName] = { tickedCount, total: tickedCount+untickedCount};
-            console.log(`${habitNoteHandle.name} ticked ${tickedCount}/${tickedCount+untickedCount}`);
+            counts[match.groups.habitURL] = { tickedCount, total: tickedCount+untickedCount};
           }
           const edited = currentContent.replaceAll(this.habitToCalculateRegex,
-              (match, p1, p2, p3, p4, p5, p6, p7, offset, string, groups) => {
+              (match, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, offset, string, groups) => {
                 const replacement = 
                   groups.beforeCount
-                  + this.toSmallNumerals(counts[groups.habitName].tickedCount)
+                  + this.toSmallNumerals(counts[groups.habitURL].tickedCount)
                   + "/"
-                  + this.toSmallNumerals(counts[groups.habitName].total)
+                  + this.toSmallNumerals(counts[groups.habitURL].total)
                   + groups.afterCount;
                 return replacement;
               });
