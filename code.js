@@ -15,7 +15,7 @@
   
     markdown(count) {
       const num = this.toSmallNumerals(count);
-      return `[(${num} ✔)][^1]\n\n[^1]: [(${num} ✔)]()\n\n    Click the button below to calculate.\n\n`;
+      return `[${num}/${num} ⎹  ][^1]\n\n[^1]: [${num}/${num} ⎹  ]()\n\n    Click the button below to calculate.\n\n`;
     },
   
     startsWith: async function(app, mark) {
@@ -40,7 +40,7 @@
       }
     },
   
-    habitToCalculateRegex: /(?<beforeCount>\[\()(?<habitTickedCount>[𝟬𝟭𝟮𝟯𝟰𝟱𝟲𝟳𝟴𝟵\/]+?)(?<afterCount> ✔\)(\]\[\^.*?\]\s*?\[){0,1}(?<habitName>.*?)\]\((?<habitURL>https:\/\/www.amplenote.com\/notes\/(?<habitUUID>.*?))\))/g,
+    habitToCalculateRegex: /(?<beforeCount>\[)(?<habitTickedCount>[𝟬𝟭𝟮𝟯𝟰𝟱𝟲𝟳𝟴𝟵\/]+?)(?<afterCount> ⎹  (\]\[\^.*?\]\s*?\[){0,1}(?<habitName>.*?)\]\((?<habitURL>https:\/\/www.amplenote.com\/notes\/(?<habitUUID>.*?))\))/g,
   
     linkOption: {
       "Count last week": {
