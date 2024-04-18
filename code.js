@@ -47,7 +47,7 @@
         check: async function(app, link) {
           const currentContent = await app.getNoteContent({ uuid: app.context.noteUUID });
   
-          var count;
+          var count = 0;
           // search for habit tracker widgets in the current note
           for (const match of currentContent.matchAll(this.habitToCalculateRegex)) {
             if (match && match.groups.habitUUID) {
@@ -67,6 +67,11 @@
   
           const counts = {};
   
+          const dailyJotHandles = await app.filterNotes({ tag: "daily-jots" });
+          dailyJotHandles.forEach(jotHandle => {
+            console.log(jotHandle.name);
+          });
+  
           // search for habit tracker widgets in the current note
           for (const match of currentContent.matchAll(this.habitToCalculateRegex)) {
             if (!match || !match.groups.habitUUID) {
@@ -76,11 +81,15 @@
             const checkboxInsideRegex = new RegExp(`\\[\\s*?(${untickedMark}|${tickedMark})\\s*?[^\\].]*?\\]\\(${match.groups.habitURL}.*?\\)`, "g");
             const checkboxBeforeRegex = new RegExp(`\\[(${untickedMark}|${tickedMark})\\]\\[\\^\\d*?\\]\\s*?\\[[^\\].]*?\\]\\(${match.groups.habitURL}.*?\\)`, "g");
   
-            var untickedCount=0, tickedCount=0;
+            var untickedCount = 0, tickedCount = 0;
   
             const habitNoteHandle = await app.findNote({ uuid: match.groups.habitUUID });
             const backlinks = await app.getNoteBacklinks({ uuid: habitNoteHandle.uuid });
-            for (const backlink of backlinks) {
+            const jotsFound = backlinks.filter(backlink => {
+              return dailyJotHandles.find(jot => jot.uuid === backlink.uuid);
+            });
+            console.log(jotsFound);
+            for (const backlink of jotsFound) {
               const refContent = await app.getNoteContent({ uuid: backlink.uuid });
               
               for (const matchInRef of refContent.matchAll(checkboxInsideRegex)) {
