@@ -1,7 +1,8 @@
 {
     defaultUnchecked: "🔲",
     defaultChecked: "✔",
-    defaultHabitTag: "habit",
+    defaultHabitsTag: "habit",
+    defaultDailyJotsTag: "daily-jots",
   
     _loadMoment() {
       if (this._haveLoadedMoment) return Promise.resolve(true);
@@ -23,9 +24,14 @@
       return [...naturalNumber+''].map(n => this.nums[(+n)]).join('');
     },
     
-    habitTag(app) {
+    habitsTag(app) {
       const key = "The tag the habits are denoted with (leave empty for 'habit')";
-      return app.settings[key] || this.defaultHabitTag;
+      return app.settings[key] || this.defaultHabitsTag;
+    },
+  
+    dailyJotsTag(app) {
+      const key = "The daily-jot tag you are using (leave empty for 'daily-jots')";
+      return app.settings[key] || this.defaultDailyJotsTag;
     },
   
     checkmark(app, checked) {
@@ -80,7 +86,7 @@
   
     insertText: {
       run: async function(app) {
-        const habitHandles = await app.filterNotes({ tag: this.habitTag(app) });
+        const habitHandles = await app.filterNotes({ tag: this.habitsTag(app) });
         const timeSpanOptions = Object.keys(this.inTimeSpan).reduce(
           (acc, val) => { acc.push({label: val, value: val}); return acc; }, []);
         const habitOptions = habitHandles.reduce(
@@ -135,7 +141,7 @@
           const currentContent = await app.getNoteContent({ uuid: app.context.noteUUID });
           const counts = {};
   
-          const dailyJotHandles = await app.filterNotes({ tag: "daily-jots" });
+          const dailyJotHandles = await app.filterNotes({ tag: this.dailyJotsTag(app) });
   
           // search for habit tracker widgets in the current note
           for (const match of currentContent.matchAll(this.habitToCalculateRegex)) {
