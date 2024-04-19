@@ -122,17 +122,13 @@
   
           const currentContent = await app.getNoteContent({ uuid: app.context.noteUUID });
   
-          var count = 0;
           // search for habit tracker widgets in the current note
+          // todo: consider treating any occurance of the habit name as a checkbox if a full task or completed task
           for (const match of currentContent.matchAll(this.habitToCalculateRegex)) {
             if (match && match.groups.habitUUID) {
-              // console.log(`match: ${JSON.stringify(match, undefined, 2)}`);
-              count++;
+              return true; // bail early since we found at least one.
             }
           }
-          // todo: consider treating any occurance of the habit name as a checkbox if a full task or completed task
-  
-          return count > 0;
         },
   
         run: async function(app, link) {
