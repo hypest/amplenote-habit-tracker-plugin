@@ -125,9 +125,7 @@
           // search for habit tracker widgets in the current note
           // todo: consider treating any occurance of the habit name as a checkbox if a full task or completed task
           for (const match of currentContent.matchAll(this.habitToCalculateRegex)) {
-            if (match && match.groups.habitUUID) {
-              return true; // bail early since we found at least one.
-            }
+            if (match && match.groups.habitUUID) return true; // bail early since we found at least one.
           }
         },
   
