@@ -33,11 +33,13 @@
       return app.settings[key] || this.defaultTimesMark;
     },
   
-    markdown(count, habit, timeSpan, habitUUID) {
+    markdown(count, habit, timeSpan, habitUUID, standalone) {
       const num = this.toSmallNumerals(count);
       // return `${num}/${num} this week |`;
-      return `[${num}/${num} ${timeSpan} |${habit ? ` ${habit}` : ''}](https:\/\/www.amplenote.com\/notes\/${habitUUID})`;
-      // return `[${num}/${num} ⎹  ][^1]\n\n[^1]: [${num}/${num} ⎹  ]()\n\n    Click the button below to calculate.\n\n`;
+      if (standalone)
+        return `[${num}/${num} ${timeSpan}][^1]\n\n[^1]: [${num}/${num} ${timeSpan}]()\n\n    Click the button below to refresh.\n\n`;
+      else
+        return `[${num}/${num} ${timeSpan} |${habit ? ` ${habit}` : ''}](https:\/\/www.amplenote.com\/notes\/${habitUUID})`;
     },
   
     startsWith: async function(app, mark) {
@@ -92,18 +94,20 @@
           }, []);
         const result = await app.prompt("", {
           inputs: [ 
-            { label: "Which time span to track?", type: "radio", options: timeSpanOptions },
-            { label: "Which habit to track?", type: "radio", options: habitOptions },
+            { label: "In table? (won't use the habit tag; adjacent table cell should have it)", type: "checkbox" },
+            { label: "Which time span to track?", type: "select", options: timeSpanOptions },
+            { label: "Which habit to track?", type: "select", options: habitOptions },
           ] 
         });
      
         if (result) {
-          const [ timeSpanOption, habitOption ] = result;
+          const [ standalone, timeSpanOption, habitOption ] = result;
           const repl = this.markdown(
             56,
             habitOptions.find(val => val.value === habitOption).label,
             timeSpanOptions.find(val => val.value === timeSpanOption).label,
-            habitOption);
+            habitOption,
+            standalone);
           await app.context.replaceSelection(repl); // using replaceSelection() to parse markdown.
         } else {
           // User canceled
