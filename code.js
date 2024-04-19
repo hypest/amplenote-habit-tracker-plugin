@@ -1,7 +1,7 @@
 {
     defaultUnchecked: "🔲",
     defaultChecked: "✔",
-    defaultTimesMark: "×",
+    defaultHabitTag: "habit",
   
     _loadMoment() {
       if (this._haveLoadedMoment) return Promise.resolve(true);
@@ -23,14 +23,21 @@
       return [...naturalNumber+''].map(n => this.nums[(+n)]).join('');
     },
     
+    habitTag(app) {
+      const key = "Tag the habits are denoted with (leave empty for 'habit')";
+      return app.settings[key] || this.defaultHabitTag;
+    },
+  
     checkmark(app, checked) {
       const key = "Times mark (leave empty for ×)";
       return app.settings[key] || this.defaultTimesMark;
     },
   
-    markdown(count) {
+    markdown(count, habit, timeSpan, habitUUID) {
       const num = this.toSmallNumerals(count);
-      return `[${num}/${num} ⎹  ][^1]\n\n[^1]: [${num}/${num} ⎹  ]()\n\n    Click the button below to calculate.\n\n`;
+      // return `${num}/${num} this week |`;
+      return `[${num}/${num} ${timeSpan} |${habit ? ` ${habit}` : ''}](https:\/\/www.amplenote.com\/notes\/${habitUUID})`;
+      // return `[${num}/${num} ⎹  ][^1]\n\n[^1]: [${num}/${num} ⎹  ]()\n\n    Click the button below to calculate.\n\n`;
     },
   
     startsWith: async function(app, mark) {
@@ -48,18 +55,76 @@
       return this.startsWith(app, mark);
     },
   
-    insertText: {
-      run: async function(app) {
-        const repl = this.markdown(56);
-        await app.context.replaceSelection(repl); // using replaceSelection() to parse markdown.
+    inTimeSpan: {
+      "this week": function(dateToCheck) {
+        const startOfThisWeek = moment().weekday(1);
+        return dateToCheck.isSameOrAfter(startOfThisWeek);
+      },
+      "last week": function(dateToCheck) {
+        const startOfThisWeek = moment().weekday(1);
+        const startOfLastWeek = startOfThisWeek.clone().subtract(7, 'days');
+        return dateToCheck.isBefore(startOfThisWeek) && dateToCheck.isSameOrAfter(startOfLastWeek);
+      },
+      "this month": function(dateToCheck) {
+        const startOfThisMonth = moment().startOf('month');
+        return dateToCheck.isSameOrAfter(startOfThisMonth);
+      },
+      "last month": function(dateToCheck) {
+        const startOfThisMonth = moment().startOf('month');
+        const startOfLastMonth = moment().subtract(1, 'months').startOf('month');
+        return dateToCheck.isBefore(startOfThisMonth) && dateToCheck.isSameOrAfter(startOfLastMonth);
       }
     },
   
-    // habitToCalculateRegex: /(?<beforeCount>\[)(?<habitTickedCount>[𝟬𝟭𝟮𝟯𝟰𝟱𝟲𝟳𝟴𝟵\/]+?)(?<afterCount> (\]\[\^.*?\]\s*?\[){0,1}(?<habitName>.*?)\]\((?<habitURL>https:\/\/www.amplenote.com\/notes\/(?<habitUUID>.*?))\))/g,
-    // habitToCalculateRegex: /(?<beforeCount>(\\\|)*?\s*?\[(\\\|)*?\s*?)(?<habitTickedCount>[𝟬𝟭𝟮𝟯𝟰𝟱𝟲𝟳𝟴𝟵\/]+)(?<afterCount>\s*?(\\\||\|)\s*?(?<habitName>.*?)\]\((?<habitURL>https:\/\/www.amplenote.com\/notes\/(?<habitUUID>.*?))\))/g,
+    insertText: {
+      "times this week": {
+        check: async function(app) {
+          return true;
+        },
+  
+        run: async function(app) {
+          const habitHandles = await app.filterNotes({ tag: this.habitTag(app) });
+          debugger;
+          const timeSpanOptions = Object.keys(this.inTimeSpan).reduce(
+            (acc, val) => {
+              acc.push({label: val, value: val});
+              return acc;
+            }, []);
+          const habitOptions = habitHandles.reduce(
+            (acc, val) => {
+              acc.push({label: val.name, value: val.uuid});
+              return acc;
+            }, []);
+          const result = await app.prompt("This is the message", {
+            inputs: [ 
+              { label: "Which time span to track?", type: "radio", options: timeSpanOptions },
+              { label: "Which habit to track?", type: "radio", options: habitOptions },
+            ] 
+          });
+       
+          if (result) {
+            const [ timeSpanOption, habitOption ] = result;
+            const repl = this.markdown(
+              56,
+              habitOptions.find(val => val.value === habitOption).label,
+              timeSpanOptions.find(val => val.value === timeSpanOption).label,
+              habitOption);
+            await app.context.replaceSelection(repl); // using replaceSelection() to parse markdown.
+          } else {
+            // User canceled
+          }
+        }
+      }
+    },
+  
+    // insertText: {
+    //   run: async function(app) {
+    //     const repl = this.markdown(56);
+    //     await app.context.replaceSelection(repl); // using replaceSelection() to parse markdown.
+    //   }
+    // },
+  
     habitToCalculateRegex: /(?<beforeCount>(\\\|)*?\s*?\[(\\\|)*?\s*?)(?<habitTickedCount>[𝟬𝟭𝟮𝟯𝟰𝟱𝟲𝟳𝟴𝟵\/]+)(?<afterCount>(\s*?(?<timeSpan>((this week)|(last week)|(this month)|(last month))) (\\\||\|)\s*?|\]\[\^.*?\]\s*?(\\\||\|)\s*?\[)(?<habitName>.*?)\]\((?<habitURL>https:\/\/www.amplenote.com\/notes\/(?<habitUUID>.*?))\))/g,
-    // habitToCalculateRegex: /(?<beforeCount>(\\\|)*?\s*?\[(\\\|)*?\s*?)(?<habitTickedCount>[𝟬𝟭𝟮𝟯𝟰𝟱𝟲𝟳𝟴𝟵\/]+)(?<afterCount>\s*?(\\\|)*?\s*?(\]\[\^.*?\]\s*?(\\\||\|)\s*?\[){0,1}(?<habitName>.*?)\]\((?<habitURL>https:\/\/www.amplenote.com\/notes\/(?<habitUUID>.*?))\))/g,
-    // example6: '[𝟱𝟲/𝟱𝟲][^3]|[Ξύπνημα 6πμ](https://www.amplenote.com/notes/7645917c-faaf-11ee-a912-02d8623bad88)',
                                                                                               
     linkOption: {
       "Refresh": {
@@ -83,12 +148,6 @@
         },
   
         run: async function(app, link) {
-          // console.log(moment("April 15th, 2024", "MMMM Do, YYYY").format('YYYY MM DD'));
-          const startOfThisWeek = moment().weekday(1);
-          const startOfLastWeek = startOfThisWeek.clone().subtract(7, 'days');
-          const startOfThisMonth = moment().startOf('month');
-          const startOfLastMonth = moment().subtract(1, 'months').startOf('month');
-  
           const untickedMark = "⬜";
           const tickedMark = "✅";
           const currentContent = await app.getNoteContent({ uuid: app.context.noteUUID });
@@ -105,28 +164,16 @@
             const checkboxInsideRegex = new RegExp(`\\[\\s*?(${untickedMark}|${tickedMark})\\s*?[^\\].]*?\\]\\(${match.groups.habitURL}.*?\\)`, "g");
             const checkboxBeforeRegex = new RegExp(`\\[(${untickedMark}|${tickedMark})\\]\\[\\^\\d*?\\]\\s*?\\[[^\\].]*?\\]\\(${match.groups.habitURL}.*?\\)`, "g");
   
-            function testDate(d) {
-              if (match.groups.timeSpan === "this week")
-                return d.isSameOrAfter(startOfThisWeek);
-  
-              if (match.groups.timeSpan === "last week")
-                return d.isBefore(startOfThisWeek) && d.isSameOrAfter(startOfLastWeek);
-  
-              if (match.groups.timeSpan === "this month")
-                return d.isSameOrAfter(startOfThisMonth);
-  
-              if (match.groups.timeSpan === "last month")
-                return d.isBefore(startOfThisMonth) && d.isSameOrAfter(startOfLastMonth);
-            };
-            
             var untickedCount = 0, tickedCount = 0;
   
             const habitNoteHandle = await app.findNote({ uuid: match.groups.habitUUID });
             const backlinks = await app.getNoteBacklinks({ uuid: habitNoteHandle.uuid });
             const jotsFound = backlinks.filter(backlink => {
               return dailyJotHandles.find(jot => {
+                if (jot.uuid !== backlink.uuid) return false // return early if not the note we're looking for
+  
                 const jotDate = moment(jot.name, "MMMM Do, YYYY");
-                return (jot.uuid === backlink.uuid) && testDate(jotDate);
+                return this.inTimeSpan[match.groups.timeSpan](jotDate);
               })
             });
   
@@ -145,6 +192,7 @@
             }
             counts[`${match.groups.habitURL}_${match.groups.timeSpan}`] = { tickedCount, total: tickedCount+untickedCount};
           }
+  
           const edited = currentContent.replaceAll(this.habitToCalculateRegex,
               (match, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15, p16, p17,
                offset, string, groups) => {
