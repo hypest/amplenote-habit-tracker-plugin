@@ -81,17 +81,10 @@
     insertText: {
       run: async function(app) {
         const habitHandles = await app.filterNotes({ tag: this.habitTag(app) });
-        debugger;
         const timeSpanOptions = Object.keys(this.inTimeSpan).reduce(
-          (acc, val) => {
-            acc.push({label: val, value: val});
-            return acc;
-          }, []);
+          (acc, val) => { acc.push({label: val, value: val}); return acc; }, []);
         const habitOptions = habitHandles.reduce(
-          (acc, val) => {
-            acc.push({label: val.name, value: val.uuid});
-            return acc;
-          }, []);
+          (acc, val) => { acc.push({label: val.name, value: val.uuid}); return acc; }, []);
         const result = await app.prompt("", {
           inputs: [ 
             { label: "In table? (won't use the habit tag; adjacent table cell should have it)", type: "checkbox" },
@@ -103,24 +96,15 @@
         if (result) {
           const [ standalone, timeSpanOption, habitOption ] = result;
           const repl = this.markdown(
-            56,
+            0,
             habitOptions.find(val => val.value === habitOption).label,
             timeSpanOptions.find(val => val.value === timeSpanOption).label,
             habitOption,
             standalone);
           await app.context.replaceSelection(repl); // using replaceSelection() to parse markdown.
-        } else {
-          // User canceled
         }
       }
     },
-  
-    // insertText: {
-    //   run: async function(app) {
-    //     const repl = this.markdown(56);
-    //     await app.context.replaceSelection(repl); // using replaceSelection() to parse markdown.
-    //   }
-    // },
   
     habitToCalculateRegex: /(?<beforeCount>(\\\|)*?\s*?\[(\\\|)*?\s*?)(?<habitTickedCount>[𝟬𝟭𝟮𝟯𝟰𝟱𝟲𝟳𝟴𝟵\/]+)(?<afterCount>(\s*?(?<timeSpan>((this week)|(last week)|(this month)|(last month))) (\\\||\|)\s*?|\]\[\^.*?\]\s*?(\\\||\|)\s*?\[)(?<habitName>.*?)\]\((?<habitURL>https:\/\/www.amplenote.com\/notes\/(?<habitUUID>.*?))\))/g,
                                                                                               
