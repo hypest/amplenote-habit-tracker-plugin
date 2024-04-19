@@ -86,8 +86,12 @@
             const jotsFound = backlinks.filter(backlink => {
               return dailyJotHandles.find(jot => jot.uuid === backlink.uuid);
             });
-            console.log(jotsFound);
-            for (const backlink of jotsFound) {
+  
+            // Amplenote seems to have a bug on mobile and getNoteBacklinks can return
+            //  the same note more than once so, make the list unique
+            const jots = jotsFound.reduce((map, jot) => map.set(jot.uuid, jot), new Map());
+            
+            for (const backlink of jots.values()) {
               const refContent = await app.getNoteContent({ uuid: backlink.uuid });
               
               for (const matchInRef of refContent.matchAll(checkboxInsideRegex)) {
