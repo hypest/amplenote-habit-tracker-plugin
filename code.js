@@ -77,42 +77,36 @@
     },
   
     insertText: {
-      "times this week": {
-        check: async function(app) {
-          return true;
-        },
-  
-        run: async function(app) {
-          const habitHandles = await app.filterNotes({ tag: this.habitTag(app) });
-          debugger;
-          const timeSpanOptions = Object.keys(this.inTimeSpan).reduce(
-            (acc, val) => {
-              acc.push({label: val, value: val});
-              return acc;
-            }, []);
-          const habitOptions = habitHandles.reduce(
-            (acc, val) => {
-              acc.push({label: val.name, value: val.uuid});
-              return acc;
-            }, []);
-          const result = await app.prompt("This is the message", {
-            inputs: [ 
-              { label: "Which time span to track?", type: "radio", options: timeSpanOptions },
-              { label: "Which habit to track?", type: "radio", options: habitOptions },
-            ] 
-          });
-       
-          if (result) {
-            const [ timeSpanOption, habitOption ] = result;
-            const repl = this.markdown(
-              56,
-              habitOptions.find(val => val.value === habitOption).label,
-              timeSpanOptions.find(val => val.value === timeSpanOption).label,
-              habitOption);
-            await app.context.replaceSelection(repl); // using replaceSelection() to parse markdown.
-          } else {
-            // User canceled
-          }
+      run: async function(app) {
+        const habitHandles = await app.filterNotes({ tag: this.habitTag(app) });
+        debugger;
+        const timeSpanOptions = Object.keys(this.inTimeSpan).reduce(
+          (acc, val) => {
+            acc.push({label: val, value: val});
+            return acc;
+          }, []);
+        const habitOptions = habitHandles.reduce(
+          (acc, val) => {
+            acc.push({label: val.name, value: val.uuid});
+            return acc;
+          }, []);
+        const result = await app.prompt("", {
+          inputs: [ 
+            { label: "Which time span to track?", type: "radio", options: timeSpanOptions },
+            { label: "Which habit to track?", type: "radio", options: habitOptions },
+          ] 
+        });
+     
+        if (result) {
+          const [ timeSpanOption, habitOption ] = result;
+          const repl = this.markdown(
+            56,
+            habitOptions.find(val => val.value === habitOption).label,
+            timeSpanOptions.find(val => val.value === timeSpanOption).label,
+            habitOption);
+          await app.context.replaceSelection(repl); // using replaceSelection() to parse markdown.
+        } else {
+          // User canceled
         }
       }
     },
