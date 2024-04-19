@@ -92,12 +92,85 @@
             habitOption,
             standalone);
           await app.context.replaceSelection(repl); // using replaceSelection() to parse markdown.
+  
+          this.updateStats(app);
         }
       }
     },
   
     habitToCalculateRegex: /(?<beforeCount>(\\\|)*?\s*?\[(\\\|)*?\s*?)(?<habitTickedCount>[𝟬𝟭𝟮𝟯𝟰𝟱𝟲𝟳𝟴𝟵\/]+)(?<afterCount>(\s*?(?<timeSpan>((this week)|(last week)|(this month)|(last month)))\s*?(\\\||\|)\s*?|\]\[\^.*?\]\s*?(\\\||\|)\s*?\[)(?<habitName>.*?)\]\((?<habitURL>https:\/\/www.amplenote.com\/notes\/(?<habitUUID>.*?))\))/g,
-                                                                                              
+  
+    async updateStats(app) {
+      // ensure momentjs is loaded
+      await this._loadMoment();
+  
+      const untickedMark = this.checkmark(app, false);
+      const tickedMark = this.checkmark(app, true);
+      const currentContent = await app.getNoteContent({ uuid: app.context.noteUUID });
+      const counts = {};
+  
+      const dailyJotHandles = await app.filterNotes({ tag: this.dailyJotsTag(app) });
+  
+      // search for habit tracker widgets in the current note
+      for (const match of currentContent.matchAll(this.habitToCalculateRegex)) {
+        if (!match || !match.groups.habitUUID) {
+          return false;
+        }
+  
+        const checkboxInsideRegex = new RegExp(`\\[\\s*?(${untickedMark}|${tickedMark})\\s*?[^\\].]*?\\]\\(${match.groups.habitURL}.*?\\)`, "g");
+        const checkboxBeforeRegex = new RegExp(`\\[(${untickedMark}|${tickedMark})\\]\\[\\^\\d*?\\]\\s*?\\[[^\\].]*?\\]\\(${match.groups.habitURL}.*?\\)`, "g");
+  
+        var untickedCount = 0, tickedCount = 0;
+  
+        const habitNoteHandle = await app.findNote({ uuid: match.groups.habitUUID });
+  
+        // filter all the backlinks to the ones that are daily jots and in the time span specified
+        const backlinks = await app.getNoteBacklinks({ uuid: habitNoteHandle.uuid });
+        const jotsFound = backlinks.filter(backlink => {
+          return dailyJotHandles.find(jot => {
+            if (jot.uuid !== backlink.uuid) return false // return early if not the note we're looking for
+  
+            const jotDate = moment(jot.name, "MMMM Do, YYYY");
+            return this.inTimeSpan[match.groups.timeSpan](jotDate);
+          })
+        });
+  
+        // Amplenote seems to have a bug on mobile and getNoteBacklinks can return
+        //  the same note more than once so, make the list unique
+        const jots = jotsFound.reduce((map, jot) => map.set(jot.uuid, jot), new Map());
+  
+        // loop over the backlinks and count the habit occurances and marked done
+        for (const backlink of jots.values()) {
+          const refContent = await app.getNoteContent({ uuid: backlink.uuid });
+          
+          for (const matchInRef of refContent.matchAll(checkboxInsideRegex)) {
+            matchInRef[1] == untickedMark ? untickedCount++ : tickedCount++;
+          }
+          for (const matchInRef of refContent.matchAll(checkboxBeforeRegex)) {
+            matchInRef[1] == untickedMark ? untickedCount++ : tickedCount++;
+          }
+        }
+        counts[`${match.groups.habitURL}_${match.groups.timeSpan}`] = { tickedCount, total: tickedCount+untickedCount};
+      }
+  
+      // update all the stat counters in the note
+      const edited = currentContent.replaceAll(this.habitToCalculateRegex,
+          (match, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15, p16, p17,
+           offset, string, groups) => {
+            const replacement = 
+              groups.beforeCount
+              + this.toSmallNumerals(counts[`${groups.habitURL}_${groups.timeSpan}`].tickedCount)
+              + "/"
+              + this.toSmallNumerals(counts[`${groups.habitURL}_${groups.timeSpan}`].total)
+              + groups.afterCount;
+            return replacement;
+          });
+      const note = await app.notes.find(app.context.noteUUID);
+      await note.replaceContent(edited);
+  
+      // todo: consider treating any occurance of the habit name as a checkbox if a full task or completed task
+    },
+  
     linkOption: {
       "Refresh": {
         check: async function(app, link) {
@@ -114,71 +187,7 @@
         },
   
         run: async function(app, link) {
-          const untickedMark = this.checkmark(app, false);
-          const tickedMark = this.checkmark(app, true);
-          const currentContent = await app.getNoteContent({ uuid: app.context.noteUUID });
-          const counts = {};
-  
-          const dailyJotHandles = await app.filterNotes({ tag: this.dailyJotsTag(app) });
-  
-          // search for habit tracker widgets in the current note
-          for (const match of currentContent.matchAll(this.habitToCalculateRegex)) {
-            if (!match || !match.groups.habitUUID) {
-              return false;
-            }
-  
-            const checkboxInsideRegex = new RegExp(`\\[\\s*?(${untickedMark}|${tickedMark})\\s*?[^\\].]*?\\]\\(${match.groups.habitURL}.*?\\)`, "g");
-            const checkboxBeforeRegex = new RegExp(`\\[(${untickedMark}|${tickedMark})\\]\\[\\^\\d*?\\]\\s*?\\[[^\\].]*?\\]\\(${match.groups.habitURL}.*?\\)`, "g");
-  
-            var untickedCount = 0, tickedCount = 0;
-  
-            const habitNoteHandle = await app.findNote({ uuid: match.groups.habitUUID });
-  
-            // filter all the backlinks to the ones that are daily jots and in the time span specified
-            const backlinks = await app.getNoteBacklinks({ uuid: habitNoteHandle.uuid });
-            const jotsFound = backlinks.filter(backlink => {
-              return dailyJotHandles.find(jot => {
-                if (jot.uuid !== backlink.uuid) return false // return early if not the note we're looking for
-  
-                const jotDate = moment(jot.name, "MMMM Do, YYYY");
-                return this.inTimeSpan[match.groups.timeSpan](jotDate);
-              })
-            });
-  
-            // Amplenote seems to have a bug on mobile and getNoteBacklinks can return
-            //  the same note more than once so, make the list unique
-            const jots = jotsFound.reduce((map, jot) => map.set(jot.uuid, jot), new Map());
-  
-            // loop over the backlinks and count the habit occurances and marked done
-            for (const backlink of jots.values()) {
-              const refContent = await app.getNoteContent({ uuid: backlink.uuid });
-              
-              for (const matchInRef of refContent.matchAll(checkboxInsideRegex)) {
-                matchInRef[1] == untickedMark ? untickedCount++ : tickedCount++;
-              }
-              for (const matchInRef of refContent.matchAll(checkboxBeforeRegex)) {
-                matchInRef[1] == untickedMark ? untickedCount++ : tickedCount++;
-              }
-            }
-            counts[`${match.groups.habitURL}_${match.groups.timeSpan}`] = { tickedCount, total: tickedCount+untickedCount};
-          }
-  
-          // update all the stat counters in the note
-          const edited = currentContent.replaceAll(this.habitToCalculateRegex,
-              (match, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15, p16, p17,
-               offset, string, groups) => {
-                const replacement = 
-                  groups.beforeCount
-                  + this.toSmallNumerals(counts[`${groups.habitURL}_${groups.timeSpan}`].tickedCount)
-                  + "/"
-                  + this.toSmallNumerals(counts[`${groups.habitURL}_${groups.timeSpan}`].total)
-                  + groups.afterCount;
-                return replacement;
-              });
-          const note = await app.notes.find(app.context.noteUUID);
-          await note.replaceContent(edited);
-  
-          // todo: consider treating any occurance of the habit name as a checkbox if a full task or completed task
+          this.updateStats(app);
         }
       }
     }
