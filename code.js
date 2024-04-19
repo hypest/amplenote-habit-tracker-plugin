@@ -35,32 +35,16 @@
     },
   
     checkmark(app, checked) {
-      const key = "Times mark (leave empty for ×)";
-      return app.settings[key] || this.defaultTimesMark;
+      const key = checked ? "Ticked checkmark (leave empty for ✔)" : "Unticked checkmark (leave empty for 🔲)";
+      return app.settings[key] || (checked ? this.defaultChecked : this.defaultUnchecked);
     },
   
     markdown(count, habit, timeSpan, habitUUID, standalone) {
       const num = this.toSmallNumerals(count);
-      // return `${num}/${num} this week |`;
       if (standalone)
         return `[${num}/${num} ${timeSpan}][^1]\n\n[^1]: [${num}/${num} ${timeSpan}]()\n\n    Click the button below to refresh.\n\n`;
       else
         return `[${num}/${num} ${timeSpan} |${habit ? ` ${habit}` : ''}](https:\/\/www.amplenote.com\/notes\/${habitUUID})`;
-    },
-  
-    startsWith: async function(app, mark) {
-      // check if the footnote corresponds a checkbox.
-      const floatingPattern = new RegExp(`^#*? *?\\[${mark}.*\\]`);
-      const inTablePattern = new RegExp(`^\\| \\|\n\\|-\\|\n\\|\\[${mark}.*\\]`);
-      return floatingPattern.test(app.context.selectionContent)
-        || inTablePattern.test(app.context.selectionContent); // also check if inside a table
-    },
-  
-    isChecked: async function(app, checked) {
-      // check if the footnote corresponds to checked or unchecked state.
-  
-      const mark = this.checkmark(app, checked);
-      return this.startsWith(app, mark);
     },
   
     inTimeSpan: {
@@ -149,6 +133,8 @@
             var untickedCount = 0, tickedCount = 0;
   
             const habitNoteHandle = await app.findNote({ uuid: match.groups.habitUUID });
+  
+            // filter all the backlinks to the ones that are daily jots and in the time span specified
             const backlinks = await app.getNoteBacklinks({ uuid: habitNoteHandle.uuid });
             const jotsFound = backlinks.filter(backlink => {
               return dailyJotHandles.find(jot => {
@@ -162,6 +148,8 @@
             // Amplenote seems to have a bug on mobile and getNoteBacklinks can return
             //  the same note more than once so, make the list unique
             const jots = jotsFound.reduce((map, jot) => map.set(jot.uuid, jot), new Map());
+  
+            // loop over the backlinks and count the habit occurances and marked done
             for (const backlink of jots.values()) {
               const refContent = await app.getNoteContent({ uuid: backlink.uuid });
               
@@ -175,6 +163,7 @@
             counts[`${match.groups.habitURL}_${match.groups.timeSpan}`] = { tickedCount, total: tickedCount+untickedCount};
           }
   
+          // update all the stat counters in the note
           const edited = currentContent.replaceAll(this.habitToCalculateRegex,
               (match, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12, p13, p14, p15, p16, p17,
                offset, string, groups) => {
