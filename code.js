@@ -59,11 +59,11 @@
   
     inTimeSpan: {
       "this week": function(dateToCheck) {
-        const startOfThisWeek = moment().weekday(1);
+        const startOfThisWeek = moment().startOf('day').weekday(1);
         return dateToCheck.isSameOrAfter(startOfThisWeek);
       },
       "last week": function(dateToCheck) {
-        const startOfThisWeek = moment().weekday(1);
+        const startOfThisWeek = moment().startOf('day').weekday(1);
         const startOfLastWeek = startOfThisWeek.clone().subtract(7, 'days');
         return dateToCheck.isBefore(startOfThisWeek) && dateToCheck.isSameOrAfter(startOfLastWeek);
       },
