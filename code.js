@@ -24,7 +24,7 @@
     },
     
     habitTag(app) {
-      const key = "Tag the habits are denoted with (leave empty for 'habit')";
+      const key = "The tag the habits are denoted with (leave empty for 'habit')";
       return app.settings[key] || this.defaultHabitTag;
     },
   
