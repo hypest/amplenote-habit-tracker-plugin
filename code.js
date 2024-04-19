@@ -130,8 +130,8 @@
         },
   
         run: async function(app, link) {
-          const untickedMark = "⬜";
-          const tickedMark = "✅";
+          const untickedMark = this.checkmark(app, false);
+          const tickedMark = this.checkmark(app, true);
           const currentContent = await app.getNoteContent({ uuid: app.context.noteUUID });
           const counts = {};
   
