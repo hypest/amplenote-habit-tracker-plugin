@@ -93,25 +93,25 @@
       run: async function(app) {
         const habitHandles = await app.filterNotes({ tag: this.habitsTag(app) });
         const timeSpanOptions = Object.keys(this.inTimeSpan).reduce(
-          (acc, val) => { if (!val.startsWith('_')) acc.push({label: val, value: val}); return acc; }, []);
+          (acc, val) => { acc.push({label: val, value: val}); return acc; }, []);
         const habitOptions = habitHandles.reduce(
           (acc, val) => { acc.push({label: val.name, value: val.uuid}); return acc; }, []);
         const result = await app.prompt("", {
           inputs: [ 
-            // { label: "Free floating (won't include the habit inline tag; tag expected right after the counter)", type: "checkbox" },
+            { label: "In table? (won't use the habit tag; adjacent table cell should have it)", type: "checkbox" },
             { label: "Which time span to track?", type: "select", options: timeSpanOptions },
             { label: "Which habit to track?", type: "select", options: habitOptions },
           ] 
         });
      
         if (result) {
-          const [ /*standalone,*/ timeSpanOption, habitOption ] = result;
+          const [ standalone, timeSpanOption, habitOption ] = result;
           const repl = this.markdown(
             0,
             habitOptions.find(val => val.value === habitOption).label,
             timeSpanOptions.find(val => val.value === timeSpanOption).label,
             habitOption,
-            false /*standalone*/);
+            standalone);
           await app.context.replaceSelection(repl); // using replaceSelection() to parse markdown.
   
           this.updateStats(app);
