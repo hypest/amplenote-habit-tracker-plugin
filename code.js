@@ -10,7 +10,7 @@
       return new Promise(function(resolve) {
         const script = document.createElement("script");
         script.setAttribute("type", "text/javascript");
-        script.setAttribute("src", "https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.30.1/moment.min.js");
+        script.setAttribute("src", "https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.30.1/moment-with-locales.min.js");
         script.addEventListener("load", function() {
           this._haveLoadedMoment = true;
           resolve(true);
@@ -38,7 +38,12 @@
       const key = checked ? "Ticked checkmark (leave empty for ✔)" : "Unticked checkmark (leave empty for 🔲)";
       return app.settings[key] || (checked ? this.defaultChecked : this.defaultUnchecked);
     },
-  
+
+    switchWeekStart(app) {
+      const key = "Switch day the week start (leave empty for locale default, otherwise enter anything here)";
+      return app.settings[key];
+    },
+
     markdown(count, habit, timeSpan, habitUUID, standalone) {
       const num = this.toSmallNumerals(count);
       if (standalone)
@@ -48,12 +53,28 @@
     },
   
     inTimeSpan: {
-      "this week": function(dateToCheck) {
-        const startOfThisWeek = moment().startOf('day').weekday(1);
+      _startOfThisWeek(switchWeekStart) {
+        const today = moment().startOf('day');
+        const isTodayLocalesStartOfWeek = today.isSame(today.weekday(0));
+        debugger;
+        if (isTodayLocalesStartOfWeek && switchWeekStart) {
+          if (today.locale('en').format('dd') === 'Su') {
+            const ret = today.subtract(6, 'days');
+            return ret;
+          }
+          if (today.locale('en').format('dd') === 'Mo') {
+            const ret = today.subtract(1, 'days');
+            return ret;
+          }
+        }
+        return today.weekday(0);
+      },
+      "this week": function(dateToCheck, switchWeekStart) {
+        const startOfThisWeek = this._startOfThisWeek(switchWeekStart);
         return dateToCheck.isSameOrAfter(startOfThisWeek);
       },
       "last week": function(dateToCheck) {
-        const startOfThisWeek = moment().startOf('day').weekday(1);
+        const startOfThisWeek = this._startOfThisWeek(switchWeekStart);
         const startOfLastWeek = startOfThisWeek.clone().subtract(7, 'days');
         return dateToCheck.isBefore(startOfThisWeek) && dateToCheck.isSameOrAfter(startOfLastWeek);
       },
@@ -72,25 +93,25 @@
       run: async function(app) {
         const habitHandles = await app.filterNotes({ tag: this.habitsTag(app) });
         const timeSpanOptions = Object.keys(this.inTimeSpan).reduce(
-          (acc, val) => { acc.push({label: val, value: val}); return acc; }, []);
+          (acc, val) => { if (!val.startsWith('_')) acc.push({label: val, value: val}); return acc; }, []);
         const habitOptions = habitHandles.reduce(
           (acc, val) => { acc.push({label: val.name, value: val.uuid}); return acc; }, []);
         const result = await app.prompt("", {
           inputs: [ 
-            { label: "In table? (won't use the habit tag; adjacent table cell should have it)", type: "checkbox" },
+            // { label: "Free floating (won't include the habit inline tag; tag expected right after the counter)", type: "checkbox" },
             { label: "Which time span to track?", type: "select", options: timeSpanOptions },
             { label: "Which habit to track?", type: "select", options: habitOptions },
           ] 
         });
      
         if (result) {
-          const [ standalone, timeSpanOption, habitOption ] = result;
+          const [ /*standalone,*/ timeSpanOption, habitOption ] = result;
           const repl = this.markdown(
             0,
             habitOptions.find(val => val.value === habitOption).label,
             timeSpanOptions.find(val => val.value === timeSpanOption).label,
             habitOption,
-            standalone);
+            false /*standalone*/);
           await app.context.replaceSelection(repl); // using replaceSelection() to parse markdown.
   
           this.updateStats(app);
@@ -131,7 +152,7 @@
             if (jot.uuid !== backlink.uuid) return false // return early if not the note we're looking for
   
             const jotDate = moment(jot.name, "MMMM Do, YYYY");
-            return this.inTimeSpan[match.groups.timeSpan](jotDate);
+            return this.inTimeSpan[match.groups.timeSpan](jotDate, this.switchWeekStart(app));
           })
         });
   
